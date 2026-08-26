@@ -1,3 +1,10 @@
 .env
 .env.*
 !.env.example
+
+# Terraform
+.terraform/
+terraform.tfstate
+terraform.tfstate.*
+*.tfvars
+!terraform.tfvars.example
