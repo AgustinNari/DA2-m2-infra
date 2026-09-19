@@ -31,6 +31,6 @@ terraform plan -var-file=dev.tfvars
 terraform apply -var-file=dev.tfvars
 ```
 
-Actualmente **no se debe ejecutar `terraform apply`**. Primero deben resolverse la restricción de tamaño de Lightsail con AWS Support y validarse el deploy manual DEV documentado en `../docs/deploy-aws-dev.md`.
+Actualmente **no se debe ejecutar `terraform apply`**. La instancia Lightsail ya existe manualmente; antes de administrarla con Terraform se deben ajustar las variables a los recursos reales, definir el manejo del state e importar esos recursos. Después corresponde revisar un `terraform plan` sin cambios destructivos.
 
 El state es local. `.terraform/`, los archivos `terraform.tfstate*` y los `.tfvars` locales están ignorados y no deben versionarse. Cuando la infraestructura deje de ser experimental deberá evaluarse un backend remoto antes del uso colaborativo.

@@ -13,6 +13,7 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+    restart: unless-stopped
 
   backend:
     build:
@@ -23,11 +24,20 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      MOCK_CITIZEN_PASSWORD: ${MOCK_CITIZEN_PASSWORD:?Set MOCK_CITIZEN_PASSWORD in .env}
+      MOCK_AGENT_PASSWORD: ${MOCK_AGENT_PASSWORD:?Set MOCK_AGENT_PASSWORD in .env}
+      MOCK_AREA_RESPONSIBLE_PASSWORD: ${MOCK_AREA_RESPONSIBLE_PASSWORD:?Set MOCK_AREA_RESPONSIBLE_PASSWORD in .env}
+      MOCK_ADMIN_PASSWORD: ${MOCK_ADMIN_PASSWORD:?Set MOCK_ADMIN_PASSWORD in .env}
+      SIMULATOR_ENABLED: ${SIMULATOR_ENABLED:-false}
+      ATTACHMENT_STORAGE_ROOT: ${ATTACHMENT_STORAGE_ROOT:-/var/lib/m2/attachments}
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - attachment_data:/var/lib/m2/attachments
     depends_on:
       postgres:
         condition: service_healthy
+    restart: unless-stopped
 
   frontend:
     build:
@@ -37,7 +47,14 @@ services:
         VITE_API_BASE_URL: /api
     ports:
       - "${FRONTEND_PORT:-8081}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
 
 volumes:
   postgres_data:
-    name: postgres_data
+  attachment_data:
