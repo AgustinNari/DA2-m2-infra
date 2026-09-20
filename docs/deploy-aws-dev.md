@@ -1,16 +1,18 @@
 # Deploy manual en AWS DEV
 
-Este procedimiento se ejecutará cuando AWS Support habilite un tamaño adecuado de Amazon Lightsail. No se debe crear infraestructura hasta que el tamaño quede confirmado.
+Este procedimiento despliega manualmente la rama `dev` en la instancia Amazon Lightsail ya habilitada. El mismo código, Dockerfiles y Compose se usan localmente y en Lightsail; sólo cambia el `.env` no versionado.
 
 ## 1. Crear la instancia
 
-En Amazon Lightsail, crear una instancia DEV con:
+La instancia DEV objetivo tiene:
 
 - región `sa-east-1`;
 - Ubuntu 24.04 LTS;
 - plan General Purpose;
 - red Dual-stack;
-- tamaño o bundle pendiente de la resolución del caso con AWS Support.
+- 2 GB RAM;
+- 2 vCPU;
+- 60 GB SSD.
 
 Crear una Static IP y asociarla a la instancia. En los firewalls IPv4 e IPv6 de Lightsail permitir solamente:
 
@@ -48,10 +50,27 @@ Los siguientes comandos asumen que el usuario tiene permisos para ejecutar Docke
 
 ## 3. Copiar el proyecto
 
-Obtener las revisiones versionadas de Backend, Frontend e Infra y conservar una estructura compatible con las rutas relativas del Compose:
+Desde el equipo que contiene los tres repos en `dev`, crear los archivos preservando los nombres de los directorios raíz:
+
+```bash
+git -C Backend/Backend-DAMII archive --format=tar --prefix=Backend-DAMII/ --output=backend.tar dev
+git -C Frontend/front-desarrollo-apps-2 archive --format=tar --prefix=front-desarrollo-apps-2/ --output=frontend.tar dev
+git -C Infra/DA2-m2-infra archive --format=tar --prefix=DA2-m2-infra/ --output=infra.tar dev
+```
+
+Copiar los tres archivos a la VM y extraerlos:
+
+```bash
+mkdir -p ~/DA2/Backend ~/DA2/Frontend ~/DA2/Infra
+tar -xf backend.tar  -C ~/DA2/Backend
+tar -xf frontend.tar -C ~/DA2/Frontend
+tar -xf infra.tar    -C ~/DA2/Infra
+```
+
+El resultado debe ser:
 
 ```text
-/opt/m2/
+~/DA2/
 ├── Backend/
 │   └── Backend-DAMII/
 ├── Frontend/
@@ -63,7 +82,7 @@ Obtener las revisiones versionadas de Backend, Frontend e Infra y conservar una 
 Ingresar al directorio del Compose:
 
 ```bash
-cd /opt/m2/Infra/DA2-m2-infra/compose
+cd ~/DA2/Infra/DA2-m2-infra/compose
 ```
 
 ## 4. Configurar DEV
@@ -77,16 +96,26 @@ cp .env.example .env
 Configurar en `.env`:
 
 ```dotenv
+POSTGRES_DB=m2
+POSTGRES_USER=m2_app
+POSTGRES_PASSWORD=<CONTRASEÑA_DEV_EXCLUSIVA>
 FRONTEND_PORT=80
+MOCK_CITIZEN_PASSWORD=<CONTRASEÑA_MOCK_CITIZEN_EXCLUSIVA>
+MOCK_AGENT_PASSWORD=<CONTRASEÑA_MOCK_AGENT_EXCLUSIVA>
+MOCK_AREA_RESPONSIBLE_PASSWORD=<CONTRASEÑA_MOCK_AREA_EXCLUSIVA>
+MOCK_ADMIN_PASSWORD=<CONTRASEÑA_MOCK_ADMIN_EXCLUSIVA>
+SIMULATOR_ENABLED=false
+ATTACHMENT_STORAGE_ROOT=/var/lib/m2/attachments
 ```
 
-Reemplazar `POSTGRES_PASSWORD` por una contraseña exclusiva y robusta para DEV. No versionar `.env`, contraseñas ni otras credenciales.
+Reemplazar todos los placeholders por contraseñas exclusivas y robustas. No reutilizar los valores del `.env.example`. No versionar `.env`, contraseñas ni otras credenciales. El simulador debe permanecer deshabilitado en Lightsail.
 
 ## 5. Validar y desplegar
 
 ```bash
-docker compose config
-docker compose build
+docker compose config --quiet
+docker compose build backend
+docker compose build frontend
 docker compose up -d
 docker compose ps
 docker compose logs --tail=100
@@ -105,23 +134,25 @@ docker compose logs -f postgres
 Desde la instancia, comprobar el Backend sin exponer `8080` públicamente:
 
 ```bash
-curl http://localhost:8080/actuator/health
+curl --fail http://127.0.0.1:8080/actuator/health
 ```
 
 Desde un navegador o equipo externo, reemplazando `STATIC_IP` por la Static IP asignada:
 
 ```text
 http://STATIC_IP
-http://STATIC_IP/api/categories
+http://STATIC_IP/api/catalog/categories
 ```
 
-La primera URL debe servir React mediante Nginx. La segunda debe atravesar el proxy `/api` hacia Backend; una respuesta `401` también confirma que la solicitud alcanzó Spring cuando el endpoint está protegido.
+La primera URL debe servir React mediante Nginx. La segunda debe atravesar el proxy `/api` y devolver el catálogo público desde Backend.
 
 ## Consideraciones
 
 - PostgreSQL debe permanecer únicamente en la red Docker y nunca publicar `5432`.
-- Backend escucha en `8080` para el host, pero ese puerto no debe habilitarse en el firewall público de Lightsail.
+- Backend se enlaza sólo a `127.0.0.1:8080`; el acceso público ocurre exclusivamente mediante Nginx bajo `/api`.
+- PostgreSQL y los adjuntos usan volúmenes persistentes. `docker compose down` los conserva.
+- Los tres servicios usan `restart: unless-stopped` para recuperarse después de reiniciar Docker o la VM.
 - HTTPS y el dominio se incorporarán después.
 - GHCR y CD se incorporarán después de validar este despliegue manual.
-- Terraform se preparará después de comprender y validar manualmente la infraestructura.
-- No ejecutar `docker compose down -v` salvo que se quiera eliminar deliberadamente la base de datos persistente.
+- La base Terraform ya existe, pero la infraestructura creada manualmente no debe administrarse con `apply` hasta definir e importar correctamente su state.
+- No ejecutar `docker compose down -v` salvo que se quieran eliminar deliberadamente la base de datos y los adjuntos persistentes.

@@ -8,3 +8,10 @@ terraform.tfstate
 terraform.tfstate.*
 *.tfvars
 !terraform.tfvars.example
+
+# Claves privadas y certificados
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
