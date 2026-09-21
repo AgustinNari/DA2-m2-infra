@@ -1,6 +1,6 @@
 # Deploy manual en AWS DEV
 
-Este procedimiento despliega manualmente la rama `dev` en la instancia Amazon Lightsail ya habilitada. El mismo código, Dockerfiles y Compose se usan localmente y en Lightsail; sólo cambia el `.env` no versionado.
+Este documento conserva el alta base de la instancia Amazon Lightsail ya habilitada. El despliegue vigente consume imágenes privadas GHCR mediante `compose/compose.deploy.yml`; el procedimiento operativo completo está en [`runbook.md`](runbook.md).
 
 ## 1. Crear la instancia
 
@@ -110,15 +110,14 @@ ATTACHMENT_STORAGE_ROOT=/var/lib/m2/attachments
 
 Reemplazar todos los placeholders por contraseñas exclusivas y robustas. No reutilizar los valores del `.env.example`. No versionar `.env`, contraseñas ni otras credenciales. El simulador debe permanecer deshabilitado en Lightsail.
 
-## 5. Validar y desplegar
+## 5. Validar y desplegar por imagen
 
 ```bash
-docker compose config --quiet
-docker compose build backend
-docker compose build frontend
-docker compose up -d
-docker compose ps
-docker compose logs --tail=100
+cp images.env.example images.env
+# Reemplazar ambos tags de ejemplo por SHAs que ya existan en GHCR.
+docker compose --env-file .env --env-file images.env -f compose.deploy.yml config --quiet
+bash ../scripts/deploy-service.sh backend <FULL_SHA_BACKEND>
+bash ../scripts/deploy-service.sh frontend <FULL_SHA_FRONTEND>
 ```
 
 Si un servicio presenta problemas, consultar sus logs:
@@ -153,6 +152,6 @@ La primera URL debe servir React mediante Nginx. La segunda debe atravesar el pr
 - PostgreSQL y los adjuntos usan volúmenes persistentes. `docker compose down` los conserva.
 - Los tres servicios usan `restart: unless-stopped` para recuperarse después de reiniciar Docker o la VM.
 - HTTPS y el dominio se incorporarán después.
-- GHCR y CD se incorporarán después de validar este despliegue manual.
+- GHCR y CD están preparados, pero CD permanece deshabilitado hasta configurar manualmente GitHub y establecer `CD_ENABLED=true`.
 - La base Terraform ya existe, pero la infraestructura creada manualmente no debe administrarse con `apply` hasta definir e importar correctamente su state.
 - No ejecutar `docker compose down -v` salvo que se quieran eliminar deliberadamente la base de datos y los adjuntos persistentes.

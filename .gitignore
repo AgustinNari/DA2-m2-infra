@@ -1,6 +1,8 @@
 .env
 .env.*
 !.env.example
+compose/images.env
+compose/.images.env.candidate.*
 
 # Terraform
 .terraform/

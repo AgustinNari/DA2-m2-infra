@@ -1,6 +1,6 @@
 # Infraestructura M2
 
-Este repositorio contiene la configuración de infraestructura para levantar el mismo código de la rama `dev` tanto localmente como en AWS Lightsail DEV. Las diferencias entre entornos se resuelven con el `.env` no versionado. Los repositorios deben conservar esta estructura relativa:
+Este repositorio contiene la configuración local y operativa de AWS Lightsail DEV. El Compose local construye desde los repositorios vecinos; el Compose de deploy consume exclusivamente imágenes privadas e inmutables de GHCR. Los repositorios deben conservar esta estructura relativa para el desarrollo local:
 
 ```text
 DA2/
@@ -12,7 +12,7 @@ DA2/
     └── DA2-m2-infra/
 ```
 
-El Compose canónico de `Infra/compose` levanta Frontend (React + Nginx), Backend y PostgreSQL. El repositorio Backend también posee un Compose propio para desarrollar únicamente Backend + PostgreSQL sin clonar Infra. Son alternativas válidas y no conviene ejecutarlas simultáneamente con sus puertos predeterminados, ya que pueden colisionar, especialmente en el puerto `8080`.
+`compose/compose.yml` levanta Frontend (React + Nginx), Backend y PostgreSQL para desarrollo. El repositorio Backend también posee un Compose propio para desarrollar únicamente Backend + PostgreSQL sin clonar Infra. Son alternativas válidas y no conviene ejecutarlas simultáneamente con sus puertos predeterminados, ya que pueden colisionar, especialmente en el puerto `8080`.
 
 ## Requisitos
 
@@ -46,8 +46,7 @@ SIMULATOR_ENABLED=false # usar true sólo cuando el desarrollador lo necesite
 ATTACHMENT_STORAGE_ROOT=/var/lib/m2/attachments
 ```
 
-En Lightsail se usan las mismas variables, con passwords DEV distintos y robustos,
-`FRONTEND_PORT=80` y `SIMULATOR_ENABLED=false`.
+En Lightsail se usa el `.env` runtime con passwords DEV distintos y robustos, `FRONTEND_PORT=80` y `SIMULATOR_ENABLED=false`. Las versiones desplegadas viven por separado en `images.env`; ese archivo no contiene secretos y tampoco se versiona.
 
 ## Comandos habituales
 
@@ -79,7 +78,7 @@ No ejecutes `docker compose down -v` salvo que quieras eliminar deliberadamente 
 - PostgreSQL: `5432` únicamente dentro de la red Docker, sin publicación al host.
 - Adjuntos: volumen persistente `attachment_data`, montado en `/var/lib/m2/attachments`.
 
-En Lightsail se usa el mismo Compose con `FRONTEND_PORT=80`. El Backend conserva el acceso local por `127.0.0.1:8080`, pero públicamente sólo se alcanza a través de `http://STATIC_IP/api/...`.
+En Lightsail se usa `compose.deploy.yml`, autocontenido y sin ninguna clave `build:`. Esta duplicación pequeña es deliberada: garantiza que la operación remota sólo pueda hacer `pull` y `up` con imágenes GHCR. Frontend publica el puerto `80`; Backend conserva el acceso local por `127.0.0.1:8080`, y PostgreSQL no publica puertos.
 
 ```text
 Browser
@@ -96,7 +95,7 @@ Frontend / Nginx
        PostgreSQL :5432
 ```
 
-El procedimiento previsto para AWS está documentado en [`docs/deploy-aws-dev.md`](docs/deploy-aws-dev.md).
+El alta de AWS está documentada en [`docs/deploy-aws-dev.md`](docs/deploy-aws-dev.md). La operación diaria, configuración de GHCR/CD, smoke tests y rollback están en [`docs/runbook.md`](docs/runbook.md).
 
 ## Alcance funcional pendiente
 
