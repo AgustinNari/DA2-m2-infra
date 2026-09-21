@@ -108,18 +108,21 @@ docker compose --env-file .env --env-file images.env -f compose.deploy.yml pull 
 
 ## Configuración de GitHub CD
 
-En ambos repositorios crear el Environment `dev`. Mantener `CD_ENABLED` como variable de repositorio en `false` o sin crear durante la preparación; la condición del job se evalúa antes de entrar al Environment.
+El proyecto no utiliza GitHub Environments. En Backend y Frontend, abrir `Settings → Secrets and variables → Actions` y mantener `CD_ENABLED` como Repository Variable en `false` o sin crear durante la preparación.
 
-Configurar en el Environment `dev` estas variables:
+Configurar estas **Repository Variables** en cada uno de esos dos repositorios:
 
+- `CD_ENABLED`: `false` durante la preparación; `true` sólo al habilitar CD.
 - `LIGHTSAIL_HOST`: Static IPv4 o hostname verificado.
 - `LIGHTSAIL_USER`: `ubuntu`.
 - `LIGHTSAIL_DEPLOY_PATH`: `/home/ubuntu/DA2/Infra/DA2-m2-infra`.
 - `LIGHTSAIL_KNOWN_HOSTS`: línea obtenida y verificada fuera del runner para el host de Lightsail.
 
-Agregar como Environment Secret `LIGHTSAIL_SSH_PRIVATE_KEY`, usando una clave dedicada sin reutilizar una clave personal. El workflow exige `StrictHostKeyChecking=yes`; nunca sustituirlo por `no`.
+Agregar como **Repository Secret** `LIGHTSAIL_SSH_PRIVATE_KEY`, usando una clave dedicada sin reutilizar una clave personal. El workflow exige `StrictHostKeyChecking=yes`; nunca sustituirlo por `no`.
 
-Para habilitar CD, establecer la variable de **repositorio** `CD_ENABLED=true` en cada repositorio sólo después de probar deploy y rollback manuales. Si falta, está vacía o tiene cualquier otro valor, la publicación GHCR continúa y el job deploy se omite sin fallar el workflow.
+Para habilitar CD, establecer `CD_ENABLED=true` en cada repositorio sólo después de probar deploy y rollback manuales. Si falta, está vacía o tiene cualquier otro valor, la publicación GHCR continúa y el job deploy se omite sin fallar el workflow.
+
+Infra actualmente sólo valida Compose y Terraform: no tiene CD, no utiliza `CD_ENABLED` ni `LIGHTSAIL_*` y no requiere Secrets de deployment. Si en el futuro se implementa Infra CD, deberá adoptar la misma convención de Repository Variables (`CD_ENABLED`, `LIGHTSAIL_HOST`, `LIGHTSAIL_USER`, `LIGHTSAIL_DEPLOY_PATH`, `LIGHTSAIL_KNOWN_HOSTS`) y Repository Secret (`LIGHTSAIL_SSH_PRIVATE_KEY`), sin depender de GitHub Environments.
 
 ## Clave SSH dedicada y host key
 
